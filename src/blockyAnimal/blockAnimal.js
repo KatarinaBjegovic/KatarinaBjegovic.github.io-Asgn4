@@ -2,24 +2,52 @@ var VSHADER_SOURCE = `
     attribute vec4 a_position;
     uniform mat4 u_ModelMatrix; 
     uniform mat4 u_GlobalRotateMatrix;
+
+    attribute vec3 a_Normal;
+    varying vec3 v_Normal;
+    attribute vec2 a_UV;
+    varying vec2 v_UV;
+
     void main() {
         gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_position;
+        v_Normal = a_Normal;
+        v_UV = a_UV;
     }`
 
 var FSHADER_SOURCE = `
     precision mediump float;
     uniform vec4 u_FragColor;
+
+    varying vec3 v_Normal;
+    varying vec2 v_UV;
+
+    uniform sampler2D u_Sampler0; // sampler
+    uniform int u_whichTexture;
+
     void main() {
-        gl_FragColor = u_FragColor;
+        if (u_whichTexture == 0) {
+            gl_FragColor = u_FragColor;
+        } else if (u_whichTexture == 1) {
+            gl_FragColor = vec4((v_Normal+1.0)/2.0, 1.0);
+        } else if (u_whichTexture == 2) {
+            gl_FragColor = vec4(v_UV, 1.0, 1.0); 
+        } else {
+            gl_FragColor = vec4(1.0, 0.2, 0.2, 1.0);  // error texture
+        }
     }`
 
 let canvas;
 let gl;
 let a_position;
+let a_UV;
+let a_Normal;
 let u_FragColor;
 let u_size;
 let u_ModelMatrix;
 let u_GlobalRotateMatrix;
+
+let u_Sampler0;
+let u_whichTexture;
 
 function setupWebGL(){
     canvas = document.getElementById('webgl');
@@ -58,9 +86,58 @@ function connectVariablesToGLSL(){
         console.log('Failed to get the storage location of u_GlobalRotateMatrix');
         return;
     }
-
+    a_Normal = gl.getAttribLocation(gl.program, 'a_Normal');
+    if (a_Normal < 0) {
+        console.log('Failed to get the storage location of a_Normal');
+        return;
+    }
+    a_UV = gl.getAttribLocation(gl.program, 'a_UV');
+    if (a_UV < 0) {
+        console.log('Failed to get the storage location of a_UV');
+        return;
+    }
+    u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
+    if (!u_Sampler0){
+        console.log('Failed to get the storage location of u_Sampler0');
+        return;
+    }
+    u_whichTexture = gl.getUniformLocation(gl.program, 'u_whichTexture');
+    if (!u_whichTexture) {
+        console.log('Failed to get the storage location of u_whichTexture');
+        return;
+    }   
+    
     var identityM = new Matrix4();
     gl.uniformMatrix4fv(u_ModelMatrix, false, identityM.elements);
+}
+
+function initTexture(gl, n) {
+    // var stage = new Image();
+    // if (!stage) {
+    //     console.log("Failed to create the image object");
+    //     return false;
+    // }
+    // stage.onload = function(){ sendTexture0toGLSL(stage);}
+
+    // stage.src = './src/stage.jpg';
+    // return true;
+}
+
+// could rename to sendImageToTexture0.... when wanting to add more textures 
+function sendTexture0toGLSL(image) {
+    var texture = gl.createTexture();
+    if (!texture) {
+        console.log("failed to creaet the texture object");
+        return false;
+    }
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB,  gl.RGB, gl.UNSIGNED_BYTE, image); 
+    gl.uniform1i(u_Sampler0, 0);
+
+    console.log("finished loadTexture STAGE ");
 }
 
 
@@ -93,6 +170,10 @@ let audioFAST = new Audio('src/blockyAnimal/music/BFMM.mp3');
 let isPlayingSLOW = false;
 let isPlayingFAST = false;
 
+
+
+let g_normalOn = false;
+
 function addActionsForHTMLUI() {
     // Play slow audio when "Play" button is clicked and we are not "poked"
     document.getElementById('on').onclick = function() {
@@ -124,6 +205,8 @@ function addActionsForHTMLUI() {
         }
     };
 
+    document.getElementById('onNormal').click = function() {g_normalOn = true;}
+    document.getElementById('offNormal').click = function() {g_normalOn = false;}
     // Slider events
     document.getElementById("angle_slider").addEventListener('mousemove', function() { 
         g_globalAngleX = this.value; 
@@ -140,6 +223,7 @@ function main() {
     setupWebGL();
     connectVariablesToGLSL();
     addActionsForHTMLUI();
+    initTexture(gl, 0);
 
     gl.clearColor(0.75, 0.84, 0.9, 1.0);
 
@@ -283,10 +367,21 @@ function renderAllShapes(){
     gl.clear(gl.COLOR_BUFFER_BIT); 
 
 
+    var floor = new Cube();
+    floor.color = [0.2,0.2,0.3,1];
+    if (g_normalOn) floor.textureNum = 1;
+    floor.matrix.translate(0,-0.85,0);
+    floor.matrix.translate(13,0,0);
+    floor.matrix.translate(0,0,-10);
+    floor.matrix.translate(0,0,13);
+    floor.matrix.scale(32,10,32);
+    floor.matrix.translate(-0.5,0,-0.5);
+    floor.render();
 
 // head animation  parts 
     var head = new Cube();
     head.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) head.textureNum = 1;
     head.matrix.translate(-.2, 0.2, 0);
     head.matrix.rotate(-45,1,0,0);
     head.matrix.rotate(g_headAngle,1,0,0);
@@ -296,6 +391,7 @@ function renderAllShapes(){
 
     var stripeOne = new Cube();
     stripeOne.color = [1,1,1,1.0];
+    if (g_normalOn) stripeOne.textureNum = 1;
     stripeOne.matrix = new Matrix4(headMatrix);
     stripeOne.matrix.translate(0.05, 0.31, -0.001);
     stripeOne.matrix.scale(0.04,0.1,0.21);
@@ -303,6 +399,7 @@ function renderAllShapes(){
     
     var stripeTwo = new Cube();
     stripeTwo.color = [1,1,1,1.0];
+    if (g_normalOn) stripeTwo.textureNum = 1;
     stripeTwo.matrix = new Matrix4(headMatrix);
     stripeTwo.matrix.translate(0.3, 0.31, -0.001);
     stripeTwo.matrix.scale(0.04,0.1,0.21);
@@ -310,6 +407,7 @@ function renderAllShapes(){
 
     var stripeThree = new Cube();
     stripeThree.color = [1,1,1,1.0];
+    if (g_normalOn) stripeThree.textureNum = 1;
     stripeThree.matrix = new Matrix4(headMatrix);
     stripeThree.matrix.translate(0.18, 0.26, -0.001);
     stripeThree.matrix.scale(0.04,0.15,0.21);
@@ -317,6 +415,7 @@ function renderAllShapes(){
 
     var eyeOne = new Cube();
     eyeOne.color = [0.3,0,0,1.0];
+    if (g_normalOn) eyeOne.textureNum = 1;
     eyeOne.matrix = new Matrix4(headMatrix);
     eyeOne.matrix.translate(0.03, 0.05, -0.001);
     eyeOne.matrix.scale(0.1,0.2,0.2);
@@ -324,6 +423,7 @@ function renderAllShapes(){
 
     var eyeTwo = new Cube();
     eyeTwo.color = [0.3,0,0,1.0];
+    if (g_normalOn) eyeTwo.textureNum = 1;
     eyeTwo.matrix = new Matrix4(headMatrix);
     eyeTwo.matrix.translate(0.25, 0.1, -0.001);
     eyeTwo.matrix.scale(0.11,0.12,0.2);
@@ -331,6 +431,7 @@ function renderAllShapes(){
 
     var nose = new Cube();
     nose.color = [1,0.6,0.6,1];
+    if (g_normalOn) nose.textureNum = 1;
     nose.matrix = new Matrix4(headMatrix);
     nose.matrix.translate(0.17, 0.06, -0.01);
     nose.matrix.scale(0.05,0.02,0.1);
@@ -338,6 +439,7 @@ function renderAllShapes(){
 
     var noseMid = new Cube();
     noseMid.color = [1,0.6,0.6,1];
+    if (g_normalOn) noseMid.textureNum = 1;
     noseMid.matrix = new Matrix4(headMatrix);
     noseMid.matrix.translate(0.177, 0.05, -0.01);
     noseMid.matrix.scale(0.035,0.015,0.1);
@@ -345,6 +447,7 @@ function renderAllShapes(){
 
     var noseBottom = new Cube();
     noseBottom.color = [1,0.6,0.6,1];
+    if (g_normalOn) noseBottom.textureNum = 1;
     noseBottom.matrix = new Matrix4(headMatrix);
     noseBottom.matrix.translate(0.185, 0.04, -0.01);
     noseBottom.matrix.scale(0.02,0.015,0.1);
@@ -352,6 +455,7 @@ function renderAllShapes(){
 
     var earLeft = new Cube();
     earLeft.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) earLeft.textureNum = 1;
     earLeft.matrix = new Matrix4(headMatrix);
     earLeft.matrix.translate(-0.05, 0.35, 0);
     earLeft.matrix.scale(0.1,0.1,0.2);
@@ -359,6 +463,7 @@ function renderAllShapes(){
 
     var earLeft2 = new Cube();
     earLeft2.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) earLeft2.textureNum = 1;
     earLeft2.matrix = new Matrix4(headMatrix);
     earLeft2.matrix.translate(-0.05, 0.33, 0);
     earLeft2.matrix.scale(0.1,0.1,0.2);
@@ -366,6 +471,7 @@ function renderAllShapes(){
 
     var earRight = new Cube();
     earRight.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) earRight.textureNum = 1;
     earRight.matrix = new Matrix4(headMatrix);
     earRight.matrix.translate(.35, 0.35, 0);
     earRight.matrix.scale(0.1,0.1,0.2);
@@ -373,6 +479,7 @@ function renderAllShapes(){
 
     var earRight2 = new Cube();
     earRight2.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) earRight2.textureNum = 1;
     earRight2.matrix = new Matrix4(headMatrix);
     earRight2.matrix.translate(.35, 0.33, 0);
     earRight2.matrix.scale(0.1,0.1,0.2);
@@ -380,6 +487,7 @@ function renderAllShapes(){
 
     var earring = new Cube();
     earring.color = [0.69,0.69,0.69,1.0];
+    if (g_normalOn) earring.textureNum = 1;
     earring.matrix = new Matrix4(headMatrix);
     earring.matrix.translate(.47, 0.3, -0.001);
     earring.matrix.rotate(45, 0, 0, 1);
@@ -388,6 +496,7 @@ function renderAllShapes(){
     
     var earring2 = new Cube();
     earring2.color = [0.69,0.69,0.69,1.0];
+    if (g_normalOn) earring2.textureNum = 1;
     earring2.matrix = new Matrix4(headMatrix);
     earring2.matrix.translate(.47, 0.35, -0.001);
     earring2.matrix.rotate(45, 0, 0, 1);
@@ -396,6 +505,7 @@ function renderAllShapes(){
 
     var septum = new Pyramid();
     septum.color = [0,0,0,1.0];
+    if (g_normalOn) septum.textureNum = 1;
     septum.matrix = new Matrix4(headMatrix);
     septum.matrix.translate(0.225, 0.035, -0.01);
     septum.matrix.rotate(40, 0, 0, 1);
@@ -404,6 +514,7 @@ function renderAllShapes(){
     
     var septum2 = new Pyramid();
     septum2.color = [0,0,0,1.0];
+    if (g_normalOn) septum2.textureNum = 1;
     septum2.matrix = new Matrix4(headMatrix);
     septum2.matrix.translate(0.23, 0.035, -0.01);
     septum2.matrix.rotate(150, 0, 0, 1);
@@ -412,6 +523,7 @@ function renderAllShapes(){
 
     var septumLeft = new Pyramid();
     septumLeft.color = [0,0,0,1.0];
+    if (g_normalOn) septumLeft.textureNum = 1;
     septumLeft.matrix = new Matrix4(headMatrix);
     septumLeft.matrix.translate(0.16, 0.04, -0.01);
     septumLeft.matrix.rotate(-40, 0, 0, 1);
@@ -420,6 +532,7 @@ function renderAllShapes(){
     
     var septumLeft2 = new Pyramid();
     septumLeft2.color = [0,0,0,1.0];
+    if (g_normalOn) septumLeft2.textureNum = 1;
     septumLeft2.matrix = new Matrix4(headMatrix);
     septumLeft2.matrix.translate(0.17, 0.04, -0.01);
     septumLeft2.matrix.rotate(-150, 0, 0, 1);
@@ -431,35 +544,41 @@ function renderAllShapes(){
 
     var neck = new Cube();
     neck.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) neck.textureNum = 1;
     neck.matrix.translate(-.125, 0.14, 0);
     neck.matrix.scale(0.25,0.05,0.2);
     neck.render();
 
     var body = new Cube();
     body.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) body.textureNum = 1;
     body.matrix.translate(-0.25, -0.55, 0);
     body.matrix.scale(0.5,0.68,0.2);
     body.render();
 
     var shirt = new Cube();
     shirt.color = [0,0,0,1.0];
+    if (g_normalOn) shirt.textureNum = 1;
     shirt.matrix.translate(-0.28, -0.1, -0.01);
     shirt.matrix.scale(0.55,0.2,0.22);
     shirt.render();
     
     var shirt2 = new Cube();
     shirt2.color = [0,0,0,1.0];
+    if (g_normalOn) shirt2.textureNum = 1;
     shirt2.matrix.translate(-0.3, -0.15, -0.01);
     shirt2.matrix.scale(0.59,0.2,0.22);
     shirt2.render();
 
     var shirt3 = new Cube();
     shirt3.color = [0,0,0,1.0];
+    if (g_normalOn) shirt3.textureNum = 1;
     shirt3.matrix.translate(-0.32, -0.38, -0.01);
     shirt3.matrix.scale(0.63,0.4,0.22);
     shirt3.render();
 
     var shirt4 = new Cube();
+    if (g_normalOn) shirt4.textureNum = 1;
     shirt4.color = [0,0,0,1.0];
     shirt4.matrix.translate(-0.3, -0.4, -0.01);
     shirt4.matrix.scale(0.59,0.25,0.22);
@@ -467,18 +586,21 @@ function renderAllShapes(){
 
     var shirt5 = new Cube();
     shirt5.color = [0,0,0,1.0];
+    if (g_normalOn) shirt5.textureNum = 1;
     shirt5.matrix.translate(-0.28, -0.43, -0.01);
     shirt5.matrix.scale(0.55,0.2,0.22);
     shirt5.render();
 
     var leftLeg = new Cube();
     leftLeg.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) leftLeg.textureNum = 1;
     leftLeg.matrix.translate(-0.25, -0.85, -0.048);
     leftLeg.matrix.scale(0.24,0.38,0.25);
     leftLeg.render();
 
     var blendLeftLeg = new Cube();
     blendLeftLeg.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) blendLeftLeg.textureNum = 1;
     blendLeftLeg.matrix.translate(-0.25, -0.48, -0.03);
     blendLeftLeg.matrix.scale(0.24,0.05,0.2);
     blendLeftLeg.render();
@@ -486,12 +608,14 @@ function renderAllShapes(){
 
     var rightLeg = new Cube();
     rightLeg.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) rightLeg.textureNum = 1;
     rightLeg.matrix.translate(0.01, -0.85, -0.048);
     rightLeg.matrix.scale(0.24,0.38,0.25);
     rightLeg.render();
 
     var blendRightLeg = new Cube();
     blendRightLeg.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) blendRightLeg.textureNum = 1;
     blendRightLeg.matrix.translate(0.01, -0.48, -0.03);
     blendRightLeg.matrix.scale(0.24,0.05,0.2);
     blendRightLeg.render();
@@ -499,6 +623,7 @@ function renderAllShapes(){
 // animation parts for foot tapping
     var leftFoot = new Cube();
     leftFoot.color = [0.35,0.35,0.35,1.0];
+    if (g_normalOn) leftFoot.textureNum = 1;
     leftFoot.matrix.translate(-0.25, -0.75, 0.01);
     leftFoot.matrix.rotate(180,1,0,0); 
     leftFoot.matrix.rotate(g_footAngle,1,0,0); //rotate from 0->40
@@ -508,6 +633,7 @@ function renderAllShapes(){
 
     var rightFoot = new Cube();
     rightFoot.color = [0.35,0.35,0.35,1.0];
+    if (g_normalOn) rightFoot.textureNum = 1;
     rightFoot.matrix.translate(0.01, -0.75, 0.01);
     rightFoot.matrix.rotate(180,90,0,0); 
     rightFoot.matrix.scale(0.24,0.1,0.15);
@@ -518,6 +644,7 @@ function renderAllShapes(){
 
     var guitarArm = new Cube(); 
     guitarArm.color = [0.82,0.67,0.49,1.0];
+    if (g_normalOn) guitarArm.textureNum = 1;
     guitarArm.matrix.translate(0.2, -0.1, -0.1);
     guitarArm.matrix.rotate(45,0,0,1); 
     guitarArm.matrix.scale(0.5,0.1,0.05);
@@ -525,6 +652,7 @@ function renderAllShapes(){
 
     var guitarTop = new Cube(); 
     guitarTop.color = [0.82,0.67,0.49,1.0];
+    if (g_normalOn) guitarTop.textureNum = 1;
     guitarTop.matrix.translate(0.57, 0.24, -0.1);
     guitarTop.matrix.rotate(45,0,0,1); 
     guitarTop.matrix.scale(0.19,0.14,0.05);
@@ -532,18 +660,21 @@ function renderAllShapes(){
 
     var guitarTop2 = new Cube(); 
     guitarTop2.color = [0.82,0.67,0.49,1.0];
+    if (g_normalOn) guitarTop2.textureNum = 1;
     guitarTop2.matrix.translate(0.6, 0.29, -0.1);
     guitarTop2.matrix.scale(0.1,0.1,0.05);
     guitarTop2.render();
     
     var guitarTop3 = new Cube(); 
     guitarTop3.color = [0.82,0.67,0.49,1.0];
+    if (g_normalOn) guitarTop3.textureNum = 1;
     guitarTop3.matrix.translate(0.6, 0.37, -0.1);
     guitarTop3.matrix.scale(0.1,0.1,0.05);
     guitarTop3.render();
 
     var guitarNotch = new Cube(); 
     guitarNotch.color = [0,0,0,1.0];
+    if (g_normalOn) guitarNotch.textureNum = 1;
     guitarNotch.matrix.translate(0.5, 0.35, -0.1);
     guitarNotch.matrix.rotate(45,0,0,1);  
     guitarNotch.matrix.scale(0.02,0.05,0.01);
@@ -551,6 +682,7 @@ function renderAllShapes(){
 
     var guitarNotch2 = new Cube(); 
     guitarNotch2.color = [0,0,0,1.0];
+    if (g_normalOn) guitarNotch2.textureNum = 1;
     guitarNotch2.matrix.translate(0.53, 0.39, -0.1);
     guitarNotch2.matrix.rotate(45,0,0,1); 
     guitarNotch2.matrix.scale(0.02,0.05,0.01);
@@ -558,6 +690,7 @@ function renderAllShapes(){
 
     var guitarNotch3 = new Cube(); 
     guitarNotch3.color = [0,0,0,1.0];
+    if (g_normalOn) guitarNotch3.textureNum = 1;
     guitarNotch3.matrix.translate(0.57, 0.43, -0.1);
     guitarNotch3.matrix.rotate(45,0,0,1);
     guitarNotch3.matrix.scale(0.02,0.05,0.01);
@@ -566,6 +699,7 @@ function renderAllShapes(){
 
     var guitarStrapShoulder = new Cube();
     guitarStrapShoulder.color = [0.3,0.1,0.1,1.0];
+    if (g_normalOn) guitarStrapShoulder.textureNum = 1;
     guitarStrapShoulder.matrix.translate(0.25, 0.05, -0.05);
     guitarStrapShoulder.matrix.rotate(45,0,0,1);
     guitarStrapShoulder.matrix.scale(0.05,0.05,0.3);
@@ -573,6 +707,7 @@ function renderAllShapes(){
 
     var guitarStrapBack = new Cube(); 
     guitarStrapBack.color = [0.3,0.1,0.1,1.0];
+    if (g_normalOn) guitarStrapBack.textureNum = 1;
     guitarStrapBack.matrix.translate(-0.32, -0.42, 0.2);
     guitarStrapBack.matrix.rotate(40,0,0,1); 
     guitarStrapBack.matrix.scale(0.75,0.05,0.05);
@@ -580,6 +715,7 @@ function renderAllShapes(){
 
     var guitarStrapFront = new Cube(); 
     guitarStrapFront.color = [0.3,0.1,0.1,1.0];
+    if (g_normalOn) guitarStrapFront.textureNum = 1;
     guitarStrapFront.matrix.translate(-0.19, -0.27, -0.1);
     guitarStrapFront.matrix.rotate(220,0,0,1); 
     guitarStrapFront.matrix.scale(0.2,0.05,0.05);
@@ -587,6 +723,7 @@ function renderAllShapes(){
 
     var guitarStrapSide = new Cube(); 
     guitarStrapSide.color = [0.3,0.1,0.1,1.0];
+    if (g_normalOn) guitarStrapSide.textureNum = 1;
     guitarStrapSide.matrix.translate(-0.32, -0.43, -0.05);
     guitarStrapSide.matrix.rotate(45,0,0,1); 
     guitarStrapSide.matrix.scale(0.05,0.05,0.3);
@@ -594,6 +731,7 @@ function renderAllShapes(){
     
     var guitarBase = new Cube(); 
     guitarBase.color = [0.31,0.21,0.23,1.0];
+    if (g_normalOn) guitarBase.textureNum = 1; 
     guitarBase.matrix.translate(0, -0.4, -0.1);
     guitarBase.matrix.rotate(45,0,0,1); 
     guitarBase.matrix.scale(0.27,0.27,0.05);
@@ -601,6 +739,7 @@ function renderAllShapes(){
 
     var guitarPart1 = new Cube(); 
     guitarPart1.color = [0.31,0.21,0.23,1.0];
+    if (g_normalOn) guitarPart1.textureNum = 1;
     guitarPart1.matrix.translate(0.2, -0.17, -0.1);
     guitarPart1.matrix.rotate(45,0,0,1);
     guitarPart1.matrix.scale(0.05,0.2,0.05);
@@ -608,6 +747,7 @@ function renderAllShapes(){
 
     var guitarPart2 = new Cube(); 
     guitarPart2.color = [0.31,0.21,0.23,1.0];
+    if (g_normalOn) guitarPart2.textureNum = 1;
     guitarPart2.matrix.translate(0.18, -0.2, -0.1);
     guitarPart2.matrix.rotate(45,0,0,1); 
     guitarPart2.matrix.scale(0.05,0.23,0.05);
@@ -615,6 +755,7 @@ function renderAllShapes(){
 
     var guitarCorner = new Cube(); 
     guitarCorner.color = [0.31,0.21,0.23,1.0];
+    if (g_normalOn) guitarCorner.textureNum = 1;
     guitarCorner.matrix.translate(0.05, -0.1, -0.1);
     guitarCorner.matrix.rotate(45,0,0,1);
     guitarCorner.matrix.scale(0.15,0.15,0.05);
@@ -622,12 +763,14 @@ function renderAllShapes(){
 
     var guitarCornerExtra = new Cube(); 
     guitarCornerExtra.color = [0.31,0.21,0.23,1.0];
+    if (g_normalOn) guitarCornerExtra.textureNum = 1;
     guitarCornerExtra.matrix.translate(-0.05, -0.13, -0.1);
     guitarCornerExtra.matrix.scale(0.15,0.15,0.05);
     guitarCornerExtra.render(); 
 
     var guitarCornerOther = new Cube(); 
     guitarCornerOther.color = [0.31,0.21,0.23,1.0];
+    if (g_normalOn) guitarCornerOther.textureNum = 1;
     guitarCornerOther.matrix.translate(0.18, -0.22, -0.1);
     guitarCornerOther.matrix.rotate(25,0,0,1);
     guitarCornerOther.matrix.scale(0.15,0.08,0.05);
@@ -635,6 +778,7 @@ function renderAllShapes(){
 
     var guitarLowerPart1 = new Cube(); 
     guitarLowerPart1.color = [0.31,0.21,0.23,1.0];
+    if (g_normalOn) guitarLowerPart1.textureNum = 1;
     guitarLowerPart1.matrix.translate(-0.05, -0.41, -0.1);
     guitarLowerPart1.matrix.rotate(45,0,0,1); 
     guitarLowerPart1.matrix.scale(0.09,0.22,0.05);
@@ -642,6 +786,7 @@ function renderAllShapes(){
 
     var guitarLowerPart2 = new Cube(); 
     guitarLowerPart2.color = [0.31,0.21,0.23,1.0];
+    if (g_normalOn) guitarLowerPart2.textureNum = 1;
     guitarLowerPart2.matrix.translate(-0.09, -0.41, -0.1);
     guitarLowerPart2.matrix.rotate(45,0,0,1); 
     guitarLowerPart2.matrix.scale(0.05,0.17,0.05);
@@ -649,6 +794,7 @@ function renderAllShapes(){
 
     var guitarHole = new Cube(); 
     guitarHole.color = [0.2,0.1,0.1,1.0];
+    if (g_normalOn) guitarHole.textureNum = 1;
     guitarHole.matrix.translate(-0.02, -0.32, -0.11);
     guitarHole.matrix.rotate(45,0,0,1); 
     guitarHole.matrix.scale(0.2,0.13,0.01);
@@ -656,6 +802,7 @@ function renderAllShapes(){
 
     var guitarBand = new Cube(); 
     guitarBand.color = [0.82,0.67,0.49,1.0];
+    if (g_normalOn) guitarBand.textureNum = 1;
     guitarBand.matrix.translate(-0.03, -0.33, -0.115);
     guitarBand.matrix.rotate(45,0,0,1);  
     guitarBand.matrix.scale(0.03,0.13,0.02);
@@ -664,6 +811,7 @@ function renderAllShapes(){
 // animation parts for string
     var guitarStringOne = new Cube(); 
     guitarStringOne.color = [0,0,0,1.0];
+    if (g_normalOn) guitarStringOne.textureNum = 1;
     guitarStringOne.matrix.translate(-0.07, -0.27, -0.13); 
     guitarStringOne.matrix.translate(0,g_stringHeight,0); // shift y up and down +- .03
     guitarStringOne.matrix.rotate(45,0,0,1);
@@ -673,6 +821,7 @@ function renderAllShapes(){
 
     var guitarStringTwo = new Cube(); 
     guitarStringTwo.color = [0,0,0,1.0];
+    if (g_normalOn) guitarStringTwo.textureNum = 1;
     guitarStringTwo.matrix = new Matrix4(guitarStringMatrix);
     guitarStringTwo.matrix.translate(0.01, -0.02, 0);
     guitarStringTwo.matrix.scale(0.9,0.01,0.05);
@@ -680,6 +829,7 @@ function renderAllShapes(){
 
     var guitarStringThree = new Cube(); 
     guitarStringThree.color = [0,0,0,1.0];
+    if (g_normalOn) guitarStringThree.textureNum = 1;
     guitarStringThree.matrix = new Matrix4(guitarStringMatrix);
     guitarStringThree.matrix.translate(0, -0.045, 0);
     guitarStringThree.matrix.scale(0.9,0.01,0.05);
@@ -689,6 +839,7 @@ function renderAllShapes(){
 
     var leftShoulder= new Cube();
     leftShoulder.color = [0,0,0,1.0];
+    if (g_normalOn) leftShoulder.textureNum = 1;
     leftShoulder.matrix.translate(-0.32, -0.08, 0);
     leftShoulder.matrix.rotate(g_shoulderAngleSldier,1,0,0); // g_shoulderAngle (0, 50)
     leftShoulder.matrix.rotate(35,0,0,1); 
@@ -698,6 +849,7 @@ function renderAllShapes(){
 
     var leftArm = new Cube();
     leftArm.color = [0.16,0.19,0.33,1.0];
+    if (g_normalOn) leftArm.textureNum = 1;
     leftArm.matrix = new Matrix4(leftShoulderMatrix);
     leftArm.matrix.translate(-0.095, -0.09, -0.2);
     //leftArm.matrix.rotate(180,0,0,0);
@@ -714,6 +866,7 @@ function renderAllShapes(){
 // start of strumming hand animation parts 
     var leftForearm= new Cube();
     leftForearm.color = [0.16,0.19,0.33,1.0];
+    if (g_normalOn) leftForearm.textureNum = 1;
     leftForearm.matrix = new Matrix4(leftArmMatrix);
     leftForearm.matrix.rotate(-45,1,0,0); 
     leftForearm.matrix.translate(0.04, 0.21, -0.03);
@@ -728,6 +881,7 @@ function renderAllShapes(){
 
     var leftHand= new Cube();
     leftHand.color = [0.45,0.45,0.45, 1.0];
+    if (g_normalOn) leftHand.textureNum = 1;
     leftHand.matrix = new Matrix4(leftForearmMatrix);
     leftHand.matrix.translate(0.23, 0, 0);
     leftHand.matrix.rotate(g_leftHandSlider,0,0,1); // g_leftHandSlider (35, -35)
@@ -740,6 +894,7 @@ function renderAllShapes(){
     
     var rightShoulder = new Cube();
     rightShoulder.color = [0,0,0,1.0];
+    if (g_normalOn) rightShoulder.textureNum = 1;
     rightShoulder.matrix.translate(0.25, -0.08, 0);
     rightShoulder.matrix.rotate(45,0,0,1); 
     rightShoulder.matrix.scale(0.14,0.12,0.15);
@@ -748,6 +903,7 @@ function renderAllShapes(){
 
     var rightArm = new Cube();
     rightArm.color = [0.16,0.19,0.33,1.0];
+    if (g_normalOn) rightArm.textureNum = 1;
     rightArm.matrix.translate(0.45, -0.15, -.14);
     rightArm.matrix.rotate(60,1,0,0);
     rightArm.matrix.rotate(50,0,0,1); 
@@ -758,6 +914,7 @@ function renderAllShapes(){
 
     var rightElbow = new Cube();
     rightElbow.color = [0.16,0.19,0.33,1.0];
+    if (g_normalOn) rightElbow.textureNum = 1;
     rightElbow.matrix.translate(0.48, -0.2, -.22);
     rightElbow.matrix.rotate(45,0,0,1);
     rightElbow.matrix.scale(0.13,0.09,0.17);
@@ -766,6 +923,7 @@ function renderAllShapes(){
 // start of note playing hand animation parts
     var rightForearm = new Cube();
     rightForearm.color = [0.16,0.19,0.33,1.0];
+    if (g_normalOn) rightForearm.textureNum = 1;
     rightForearm.matrix.translate(0.45, -0.15, -.22);
     rightForearm.matrix.rotate(25,0,0,1);
     rightForearm.matrix.rotate(g_noteHandAngle,0,0,1); // move from 0-->35
@@ -775,6 +933,7 @@ function renderAllShapes(){
 
     var rightHand = new Cube();
     rightHand.color = [0.45,0.45,0.45,1.0];
+    if (g_normalOn) rightHand.textureNum = 1;
     rightHand.matrix = new Matrix4(rightForearmMatrix);
     rightHand.matrix.translate(0, 0.20, 0);
     rightHand.matrix.scale(0.12,0.12,0.1);
