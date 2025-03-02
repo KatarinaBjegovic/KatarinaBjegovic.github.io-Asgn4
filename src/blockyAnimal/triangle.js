@@ -15,7 +15,7 @@ class Triangle{
 
         var d = this.size/200.0; 
         drawTriangle([xy[0], xy[1], xy[0]+d, xy[1], xy[0], xy[1]+d]); 
-    }
+    }    
 }
 
 
@@ -100,6 +100,6 @@ function drawTriangle3DUVNormal(verticies, uv, normals){
     gl.enableVertexAttribArray(a_Normal);
 
     gl.drawArrays(gl.TRIANGLES, 0, n);
-    //g_vertexBuffer = null;
+    // g_vertexBuffer = null;
 }
 

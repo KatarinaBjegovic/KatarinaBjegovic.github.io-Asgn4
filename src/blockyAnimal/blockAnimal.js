@@ -1,4 +1,5 @@
 var VSHADER_SOURCE = `
+    precision mediump float;
     attribute vec4 a_position;
     uniform mat4 u_ModelMatrix; 
     uniform mat4 u_GlobalRotateMatrix;
@@ -28,11 +29,12 @@ var FSHADER_SOURCE = `
         if (u_whichTexture == 0) {
             gl_FragColor = u_FragColor;
         } else if (u_whichTexture == 1) {
-            gl_FragColor = vec4((v_Normal+1.0)/2.0, 1.0);
+            //gl_FragColor = vec4((v_Normal+1.0)/2.0, 1.0);
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         } else if (u_whichTexture == 2) {
             gl_FragColor = vec4(v_UV, 1.0, 1.0); 
         } else {
-            gl_FragColor = vec4(1.0, 0.2, 0.2, 1.0);  // error texture
+            gl_FragColor = vec4(v_UV, 1.0, 1.0);  // error texture
         }
     }`
 
@@ -182,6 +184,8 @@ function addActionsForHTMLUI() {
             audioSLOW.play();
             isPlayingSLOW = true;
             console.log('Playing slow music');
+            console.log("hello")
+            console.log("hello")
         }
     };
 
@@ -205,8 +209,8 @@ function addActionsForHTMLUI() {
         }
     };
 
-    document.getElementById('onNormal').click = function() {g_normalOn = true;}
-    document.getElementById('offNormal').click = function() {g_normalOn = false;}
+    document.getElementById('onNormal').onclick = function() {g_normalOn = true;}
+    document.getElementById('offNormal').onclick = function() {g_normalOn = false;}
     // Slider events
     document.getElementById("angle_slider").addEventListener('mousemove', function() { 
         g_globalAngleX = this.value; 
@@ -352,6 +356,7 @@ function updateAnimationAnglesPOKE(){
 function renderAllShapes(){
 
     var startTime = performance.now();
+    console.log("hello")
 
     // Combine rotations around the X, Y, and Z axes
     var rotationMatrix = new Matrix4();
@@ -368,8 +373,8 @@ function renderAllShapes(){
 
 
     var floor = new Cube();
-    floor.color = [0.2,0.2,0.3,1];
-    if (g_normalOn) floor.textureNum = 1;
+    if (g_normalOn) {floor.textureNum = 1;}
+    else { floor.color = [0.2,0.2,0.3,1]; }
     floor.matrix.translate(0,-0.85,0);
     floor.matrix.translate(13,0,0);
     floor.matrix.translate(0,0,-10);
@@ -380,8 +385,11 @@ function renderAllShapes(){
 
 // head animation  parts 
     var head = new Cube();
-    head.color = [0.45,0.45,0.45,1.0];
-    if (g_normalOn) head.textureNum = 1;
+    console.log(head.textureNum)
+    if (g_normalOn) {head.textureNum = 1;}
+    else {head.color = [0.45,0.45,0.45,1.0];}
+    console.log(g_normalOn)
+    console.log(head.textureNum)
     head.matrix.translate(-.2, 0.2, 0);
     head.matrix.rotate(-45,1,0,0);
     head.matrix.rotate(g_headAngle,1,0,0);
@@ -673,7 +681,7 @@ function renderAllShapes(){
     guitarTop3.render();
 
     var guitarNotch = new Cube(); 
-    guitarNotch.color = [0,0,0,1.0];
+    guitarNotch.color = [0,0,1,1.0];
     if (g_normalOn) guitarNotch.textureNum = 1;
     guitarNotch.matrix.translate(0.5, 0.35, -0.1);
     guitarNotch.matrix.rotate(45,0,0,1);  
