@@ -2,15 +2,19 @@
  <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <title>Draw a point (1)</title>
+        <title>World Asgn 3</title>
     </head>
 
     <body onload="main()">
         <canvas id="webgl" width="400" height="400">
         </canvas>
-        <strong>Shoegaze Cat</strong>
+        <strong>Concert</strong>
         <div>
             <div id="outputDiv">Initial content</div>
+            
+            <div style="text-align: center; margin-top: 10px;">
+                <p>Watch the Show ! </p>
+            </div>
 
             <div>
                 <strong>Animation</strong>
@@ -22,15 +26,6 @@
                 </div>
                 <strong>Have Sound On...</strong>
             </div>
-            <div>
-                <strong>Lighting</strong>
-                <div class="onoff">
-                    <button id="onNormal">ON</button>
-                    <button id="offNormal">OFF</button>
-                </div>
-                <strong>Have Sound On...</strong>
-            </div>
-
 
             <div style="display: flex; gap: 10px; justify-content: space-between;">
                 <div>
@@ -53,21 +48,72 @@
                     <label class="slider_label" for="angle_slider"> Hand Angle</label>
                     <input type="range" id="hand" min="-35" max="35" value="3" class="slider-input">
                 </div>
+
+                <div style="display: flex; gap: 10px; justify-content: space-between;">
+                    <div>
+                        <label class="slider_label" for="angle_slider">Angle</label>
+                        <input type="range" id="angle_slider" min="0" max="360" value="5" class="slider-input">
+                    </div>
+                </div>
             </div>
+
+            <div>
+                <strong>Lighting with Normals</strong>
+                <div class="onoff">
+                    <button id="onNormal">ON</button>
+                    <button id="offNormal">OFF</button>
+                </div>
+            </div>
+
+            <div>
+                <strong>Other Light Options</strong>
+                <button type = "button" id = "lightOn">Light On</button>
+                <button type = "button" id = "lightOff">Light Off</button>
+                </div>
+
+                <div>
+                  <button type = "button" id = "spotlightOn">Spotlight On</button>
+                  <button type = "button" id = "spotlightOff">Spotlight Off</button>
+                  </div>
+            </div>
+
+
+            <div>
+                <label for="red_slide">Red Light</label>
+                <input type="range" id="red_slide" name="red_slide" min="200" max="255" value="255" step="5" />
+                <label for="green_slide">Green Light</label>
+                <input type="range" id="green_slide" name="green_slide" min="200" max="255" value="255" step="5" />
+                <label for="blue_slide">Blue Light</label>
+                <input type="range" id="blue_slide" name="blue_slide" min="200" max="255" value="255" step="5" />
+            
+            </div>
+
+            <div>
+                <label for="x_slide">X</label>
+                <input type="range" id="x_slide" name="x_slide" min="-500" max="800" value="0" step="5" />
+                <label for="y_slide">Y</label>
+                <input type="range" id="y_slide" name="y_slide" min="-100" max="800" value="0" step="5" /> 
+                <label for="z_slide">Z</label>
+                <input type="range" id="z_slide" name="z_slide" min="-700" max="600" value="0" step="5" />            </div>
+            </div>
+           
+            
         </div>
     </div>
 
-
-        <script src="src/blockyAnimal/lib/webgl-utils.js"></script>
-        <script src="src/blockyAnimal/lib/webgl-debug.js"></script> 
-        <script src="src/blockyAnimal/blockAnimal.js"></script>
-        <script src="src/blockyAnimal/lib/cuon-utils.js"></script>
-        <script src="src/blockyAnimal/lib/cuon-matrix.js"></script>
-        <script src="src/blockyAnimal/triangle.js"></script>
-        <script src="src/blockyAnimal/circle.js"></script>
-        <script src="src/blockyAnimal/point.js"></script>
-        <script src="src/blockyAnimal/cube.js"></script>
-        <script src="src/blockyAnimal/pyramid.js"></script>
-        <!-- <script src="../asgn1/asgn1.js"></script> -->
+        <script src="src/lib/webgl-utils.js"></script>
+        <script src="src/lib/webgl-debug.js"></script>
+        <script src="src/lib/cuon-matrix.js"></script>
+        <script src="src/Camera.js"></script> 
+        <script src="src/blockAnimal.js"></script>
+        <script src="src/lib/cuon-utils.js"></script>
+        <script src="src/triangle.js"></script>
+        <script src="src/circle.js"></script>
+        <script src="src/point.js"></script>
+        <script src="src/cube.js"></script>
+        <script src="src/pyramid.js"></script>
+        <script src="src/Sphere.js"></script>
     </body>
 </html>
+
+
